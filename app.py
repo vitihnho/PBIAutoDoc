@@ -273,7 +273,31 @@ def update_fonte_dados(data, tables_df):
             update_fonte_dados(item, tables_df)  
 
 def buttons_download(df):
-    """Exibe botões para download e visualização dos dados processados."""    
+    """Exibe botões para download e visualização dos dados processados."""  
+
+    if 'response_info' not in st.session_state:
+        st.session_state['response_info'] = {}
+    if 'Titulo' not in st.session_state['response_info']:
+        st.session_state['response_info']['Titulo'] = "Relatório Power BI"  # título padrão
+    if 'Descricao' not in st.session_state['response_info']:
+        st.session_state['response_info']['Descricao'] = ""
+    if 'response_tables' not in st.session_state:
+        st.session_state['response_tables'] = []
+    if 'response_measures' not in st.session_state:
+        st.session_state['response_measures'] = []
+    if 'response_source' not in st.session_state:
+        st.session_state['response_source'] = []
+    if 'measures_df' not in st.session_state:
+        st.session_state['measures_df'] = pd.DataFrame()
+    if 'df_colunas' not in st.session_state:
+        st.session_state['df_colunas'] = pd.DataFrame()
+    if 'df_relationships' not in st.session_state:
+        st.session_state['df_relationships'] = pd.DataFrame()
+    if 'modelo' not in st.session_state:
+        st.session_state['modelo'] = ""
+    if 'language' not in st.session_state:
+        st.session_state['language'] = "en"
+
     if not df.empty and 'ReportName' in df.columns:
         report_name = df['ReportName'].iloc[0].replace(' ', '_')
     else:
@@ -325,53 +349,20 @@ def buttons_download(df):
         conversar = st.button(t('ui.chat'), disabled=st.session_state.get('show_chat', False))
 
     if gerar_doc and not st.session_state.get('show_chat', False):
-        conta_interacao = 1
-        gerando = t('messages.generating_documentation')
-        with st.spinner(gerando):
+
+        with st.spinner(t('messages.generating_documentation')):
+            # Gera os dados necessários para o relatório
             document_text_all, dados_relatorio_PBI_medidas, dados_relatorio_PBI_fontes, measures_df, tables_df, df_colunas = text_to_document(df, max_tokens=MAX_TOKENS)
-            medidas_do_relatorio_df = pd.DataFrame()
-            fontes_de_dados_df = pd.DataFrame()
-            Uma = True
-            response_info = {}
+            
+            # Evita chamadas ao Documenta (IA)
+            response_info = {}        # Só placeholders
             response_tables = []
-            if counttokens(document_text_all) < MAX_TOKENS:
-                response = Documenta(defined_prompt(t('language_name')), document_text_all, MODELO, max_tokens=MAX_TOKENS, max_tokens_saida=MAX_TOKENS_SAIDA)
-                conta_interacao += 1
-                if Uma and 'Relatorio' in response and 'Tabelas_do_Relatorio' in response:
-                    Uma = False
-                    response_info = response['Relatorio']
-                    response_tables = response['Tabelas_do_Relatorio']
-                response_measures = response['Medidas_do_Relatorio']
-                response_source = response['Fontes_de_Dados']
-            else:
-                for text in dados_relatorio_PBI_medidas:
-                    gerando = f"{conta_interacao}{t('ui.interaction_progress')}"
-                    with st.spinner(gerando):
-                        response = Documenta(defined_prompt_medidas(t('language_name')), text, MODELO, max_tokens=MAX_TOKENS, max_tokens_saida=MAX_TOKENS_SAIDA)
-                        conta_interacao += 1
-                        if Uma and 'Relatorio' in response and 'Tabelas_do_Relatorio' in response:
-                            Uma = False
-                            response_info = response['Relatorio']
-                            response_tables = response['Tabelas_do_Relatorio']
-                        if 'Medidas_do_Relatorio'  in response:
-                            medidas_do_relatorio_df = pd.concat([medidas_do_relatorio_df, pd.DataFrame(response["Medidas_do_Relatorio"])], ignore_index=True)
-                for text in dados_relatorio_PBI_fontes:
-                    gerando = f"{conta_interacao}{t('ui.interaction_progress')}"
-                    with st.spinner(gerando):
-                        response = Documenta(defined_prompt_fontes(t('language_name')), text, MODELO, max_tokens=MAX_TOKENS, max_tokens_saida=MAX_TOKENS_SAIDA)
-                        conta_interacao += 1
-                        if Uma and 'Relatorio' in response and 'Tabelas_do_Relatorio' in response:
-                            print(response)
-                            Uma = False
-                            response_info = response['Relatorio']
-                            response_tables = response['Tabelas_do_Relatorio']
-                        if 'Fontes_de_Dados' in response:
-                            fontes_de_dados_df = pd.concat([fontes_de_dados_df, pd.DataFrame(response["Fontes_de_Dados"])], ignore_index=True)
-                response_measures = medidas_do_relatorio_df.to_dict(orient='records')
-                response_source = fontes_de_dados_df.to_dict(orient='records')
-            
+            response_measures = [m for m in dados_relatorio_PBI_medidas]  # Pode usar os dados do próprio text_to_document
+            response_source = [f for f in dados_relatorio_PBI_fontes]
+
             update_fonte_dados(response_source, tables_df)
-            
+
+            # Salva no session_state para os botões de download
             st.session_state['response_info'] = response_info
             st.session_state['response_tables'] = response_tables
             st.session_state['response_measures'] = response_measures
@@ -379,10 +370,10 @@ def buttons_download(df):
             st.session_state['measures_df'] = measures_df
             st.session_state['df_colunas'] = df_colunas
             st.session_state.button = False
-            st.session_state['doc_gerada'] = True  # <-- Seta flag após gerar documentação
-            st.session_state['modelo'] = MODELO
+            st.session_state['doc_gerada'] = True
             st.session_state.show_chat = False
             st.success(t('messages.documentation_generated'))
+
 
     if conversar and not st.session_state.get('show_chat', False):
         st.session_state.show_chat = True

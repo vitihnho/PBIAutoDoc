@@ -737,16 +737,26 @@ def text_to_document(df, df_relationships=None, max_tokens=4096):
 
     # Prepara para enviar as medidas do relatório em partes por causa da limitação de tokens do modelo
     #monta um texto com o nome da medida e a expressao da medida    
-    measures_df['NomeMedidaExpressao'] = '<tag> Nome da medida: ' + measures_df['NomeMedida'] + ' Expressão da medida: ' + measures_df['ExpressaoMedida']
 
-    text_chunker_medidas = TextChunker(chunk_size=max_tokens, tokens=True, overlap_percent=0, split_strategies=[split_by_tag])
+    measures_df['NomeMedida'] = measures_df['NomeMedida'].fillna("").astype(str)
+    measures_df['ExpressaoMedida'] = measures_df['ExpressaoMedida'].fillna("").astype(str)
+
+    measures_df['NomeMedidaExpressao'] = (
+        '<tag> Nome da medida: ' + measures_df['NomeMedida'] +
+        ' Expressão da medida:  ' + measures_df['ExpressaoMedida']
+    )
+
+    text_chunker_medidas = TextChunker(
+        chunk_size=max_tokens
+    )
+
     chunks_medidas = text_chunker_medidas.chunk(measures_df['NomeMedidaExpressao'].to_string(index=False))
 
     # Prepara para enviar as fontes dos dados do relatório em partes por causa da limitação de tokens do modelo
     #monta um texto com o nome da tabela e fontededados
     tables_df['NomeTabelaFonteDados'] = '<tag> NomeTabela: ' + tables_df['NomeTabela'] + ' Fonte de Dados: ' + tables_df['FonteDados']
 
-    text_chunker_fontes = TextChunker(chunk_size=max_tokens, tokens=True, overlap_percent=0, split_strategies=[split_by_tag])
+    text_chunker_fontes = TextChunker(chunk_size=max_tokens)
     chunks_fontes = text_chunker_fontes.chunk(tables_df['NomeTabelaFonteDados'].to_string(index=False))
 
     # define uma lista para armazenar todos os textos para o modelo LLM
